@@ -22,11 +22,11 @@ function App() {
         const hr = h.get("room");
         if (hr) return hr;
       }
-      // 3) Expect the last path segment to be the room id (e.g. https://.../<roomid>)
-      const parts = url.pathname.split("/").filter(Boolean);
-      // fallback to last path segment if present
-      const last = parts.length ? parts[parts.length - 1] : null;
-      return last && last !== "index.html" ? last : null;
+
+      // Do not accept pretty-paths (last path segment) because GitHub Pages
+      // cannot serve arbitrary paths for single-page assets. Only accept
+      // explicit `?room=` or `#room=` parameters.
+      return null;
     } catch (e) {
       return null;
     }
@@ -99,9 +99,19 @@ function App() {
   const submitRoom = (value?: string) => {
     const v = (value ?? inputValue).trim();
     if (!v) return;
-    // update URL to a pretty path (last segment = room id) and query param, without reloading
-    const newUrl = `${window.location.origin}/${encodeURIComponent(v)}`;
-    window.history.pushState({}, "", newUrl);
+    // update URL to include ?room= without changing the path (avoids GH Pages 404s)
+    try {
+      const u = new URL(window.location.href);
+      u.searchParams.set('room', v);
+      // keep pathname unchanged to avoid pretty-paths that GitHub Pages can't serve
+      window.history.pushState({}, '', u.toString());
+    } catch (e) {
+      // fallback: replace location.search directly
+      const loc = window.location;
+      const base = loc.pathname || '/';
+      const newUrl = `${loc.origin}${base}?room=${encodeURIComponent(v)}`;
+      window.history.pushState({}, '', newUrl);
+    }
     setRoomId(v);
   };
 
