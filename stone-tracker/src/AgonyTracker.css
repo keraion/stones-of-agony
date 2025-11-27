@@ -1,0 +1,143 @@
+.tracker-loading {
+  color: #fff;
+  font-style: italic;
+  font-size: 1em;
+}
+
+body {
+  background: #222;
+  color: #eee;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+}
+
+.tracker-card {
+  background: #333;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px #000a;
+  padding: 6px 8px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0px;
+  /* Ensure the card centers itself when inside a flex container */
+  align-self: center;
+  min-width: 400px;
+  min-height: 70px;
+  max-width: 400px;
+  max-height: 70px;
+}
+
+/* Make each tracker-section flexible and centered so sections are evenly spaced */
+.tracker-section {
+  text-align: center;
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* If the tracker is placed inside an OBS overlay root, pin it top-left */
+.obs-root .tracker-card {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+img[alt="Agony"] {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  margin: 0;
+  display: block;
+}
+.tracker-label {
+  font-size: 1.1em;
+  font-weight: bold;
+  color: #fff;
+  margin-bottom: 3px;
+}
+.tracker-value {
+  font-size: 1.2em;
+  font-weight: bold;
+  background: #222;
+  color: #fff;
+  border-radius: 4px;
+  padding: 4px 12px;
+  min-width: 40px;
+  box-shadow: 0 1px 4px #0006;
+  display: inline-block;
+}
+
+/* Fallback room input styling to match the tracker theme */
+.room-fallback {
+  background: rgba(51,51,51,0.95);
+  color: #eee;
+  /* fallback default styling when used standalone */
+  padding: 12px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px #000a;
+  max-width: 420px;
+  width: 100%;
+}
+
+.room-fallback h3 {
+  margin: 0 0 8px 0;
+  font-size: 1.1rem;
+  color: #fff;
+}
+
+.room-input {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 16px;
+  border-radius: 6px;
+  border: 1px solid #444;
+  background: #121212;
+  color: #fff;
+  box-sizing: border-box;
+  height: 44px;
+}
+
+.room-go {
+  padding: 8px 14px;
+  font-size: 14px;
+  background: #556b2f; /* subtle olive accent */
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+/* When the fallback is used inside the tracker-card, tighten padding and
+   align content vertically to match the tracker dimensions. */
+.tracker-card.room-fallback {
+  padding: 6px 8px;
+  min-height: 70px;
+  max-height: 70px;
+}
+
+.tracker-card.room-fallback .room-input {
+  height: 48px;
+}
+
+.tracker-card.room-fallback .room-go {
+  height: 40px;
+  padding: 6px 12px;
+}
+
+.room-help {
+  margin-top: 10px;
+  color: #bbb;
+  font-size: 0.9rem;
+}
+
+.room-help code {
+  background: rgba(0,0,0,0.25);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #fff;
+}
