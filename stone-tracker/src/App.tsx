@@ -35,7 +35,6 @@ function App() {
 
 
   useEffect(() => {
-    // let roomId = window.location.pathname.split("/").pop();
     if (!roomId) return;
 
     let mounted = true;
