@@ -35,6 +35,8 @@ jobs:
       - name: Set VITE_API_URL (from secret or fallback)
         run: |
           echo "VITE_API_URL=${{ secrets.VITE_API_URL }}" >> $GITHUB_ENV
+          # Set the base path for Vite-built assets so GH Pages serves from /<repo>/
+          echo "VITE_BASE=${{ secrets.VITE_BASE }}" >> $GITHUB_ENV
 
       - name: Build
         run: npm run build
