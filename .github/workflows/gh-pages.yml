@@ -20,12 +20,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-node-${{ hashFiles('stone-tracker/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node-
 
       - name: Install dependencies
         run: npm ci
+        working-directory: stone-tracker
 
       - name: Set VITE_API_URL (from secret or fallback)
         run: |
@@ -33,6 +34,7 @@ jobs:
 
       - name: Build
         run: npm run build
+        working-directory: stone-tracker
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
