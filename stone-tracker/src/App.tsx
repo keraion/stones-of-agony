@@ -2,11 +2,19 @@ import { useEffect, useState } from "react";
 import AgonyTracker from "./AgonyTracker";
 import "./AgonyTracker.css";
 import agonyImg from './assets/Stone_of_Agony_OoT.webp';
-import { getAgony, getTotalChecksAvailable, getTotalChecksDone } from './lib/archipelago';
+import { getAgony, getGreg, getTotalChecksAvailable, getTotalChecksDone } from './lib/archipelago';
+
+function parseFlag(value: string | null): boolean {
+  if (!value) return false;
+  const normalized = value.trim().toLowerCase();
+  return normalized === '1' || normalized === 'true' || normalized === 'yes' || normalized === 'on';
+}
 
 function App() {
   const [agony, setAgony] = useState(0);
   const [agonyTotal, setAgonyTotal] = useState(0);
+  const [greg, setGreg] = useState(0);
+  const [gregTotal, setGregTotal] = useState(0);
   const [checks, setChecks] = useState(0);
   const [checksTotal, setChecksTotal] = useState(0);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -31,6 +39,21 @@ function App() {
       return null;
     }
   });
+  const [showGreg] = useState<boolean>(() => {
+    try {
+      const url = new URL(window.location.href);
+      const q = url.searchParams.get("greg");
+      if (parseFlag(q)) return true;
+      if (url.hash) {
+        const h = new URLSearchParams(url.hash.slice(1));
+        const hg = h.get("greg");
+        if (parseFlag(hg)) return true;
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  });
   const percent = checksTotal > 0 ? ((checks / checksTotal) * 100).toFixed(2) : "0.00";
 
 
@@ -48,26 +71,38 @@ function App() {
 
         // Fetch dynamic values (agony + checks done) in parallel for initial load
         setInitialLoading(true);
-        const [agonyJson, doneJson] = await Promise.all([
+        const gregPromise = showGreg
+          ? getGreg(roomId)
+          : Promise.resolve({ collected: 0, total: 0 });
+        const [agonyJson, doneJson, gregJson] = await Promise.all([
           getAgony(roomId),
           getTotalChecksDone(roomId),
+          gregPromise,
         ]);
         if (!mounted) return;
         setAgony(agonyJson.collected);
         setAgonyTotal(agonyJson.total);
+        setGreg(gregJson.collected);
+        setGregTotal(gregJson.total);
         setChecks(doneJson.checks_done ?? 0);
         setInitialLoading(false);
 
         // Schedule periodic refresh for dynamic values only (every 1 minute)
         const interval = setInterval(async () => {
           try {
-            const [aJson, cJson] = await Promise.all([
+            const gPromise = showGreg
+              ? getGreg(roomId)
+              : Promise.resolve({ collected: 0, total: 0 });
+            const [aJson, cJson, gJson] = await Promise.all([
               getAgony(roomId),
               getTotalChecksDone(roomId),
+              gPromise,
             ]);
             if (!mounted) return;
             setAgony(aJson.collected);
             setAgonyTotal(aJson.total);
+            setGreg(gJson.collected);
+            setGregTotal(gJson.total);
             setChecks(cJson.checks_done ?? 0);
           } catch (err) {
             // ignore periodic errors for now
@@ -91,7 +126,7 @@ function App() {
         if (typeof maybeCleanup === 'function') maybeCleanup();
       });
     };
-  }, [roomId]);
+  }, [roomId, showGreg]);
 
   const [inputValue, setInputValue] = useState("");
 
@@ -141,6 +176,9 @@ function App() {
       <AgonyTracker
         agony={initialLoading ? `...` : agony}
         agonyTotal={initialLoading ? `...` : agonyTotal}
+        greg={initialLoading ? `...` : greg}
+        gregTotal={initialLoading ? `...` : gregTotal}
+        showGreg={showGreg}
         checks={initialLoading ? `...` : checks}
         checksTotal={initialLoading ? `...` : checksTotal}
         percent={initialLoading ? `...` : percent}

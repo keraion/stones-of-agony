@@ -116,9 +116,13 @@ export async function getTotalChecksAvailable(roomId: string): Promise<{ total_c
 }
 
 const AGONY_GAMES = ["Ocarina of Time", "Ship of Harkinian"];
+const GREG_GAMES = ["Ship of Harkinian"];
 
-
-export async function getAgony(roomId: string): Promise<{ collected: number; total: number }> {
+async function getSpecialItemProgress(
+    roomId: string,
+    itemName: string,
+    supportedGames: string[]
+): Promise<{ collected: number; total: number }> {
     // Resolve tracker and datapackages
     const trackerId = await resolveTrackerIdFromRoom(roomId);
     if (!trackerId) return { collected: 0, total: 0 };
@@ -132,7 +136,7 @@ export async function getAgony(roomId: string): Promise<{ collected: number; tot
     // Build map of game -> Stone of Agony item id via datapackage
     const datapackage = staticTracker?.datapackage || {};
     const stoneIdByGame: Record<string, number | null> = {};
-    for (const game of AGONY_GAMES) {
+    for (const game of supportedGames) {
         const gameInfo = datapackage?.[game];
         if (!gameInfo || !gameInfo.checksum) {
             stoneIdByGame[game] = null;
@@ -140,7 +144,7 @@ export async function getAgony(roomId: string): Promise<{ collected: number; tot
         }
         try {
             const dp = await getDatapackage(gameInfo.checksum);
-            const id = dp?.item_name_to_id?.["Stone of Agony"];
+            const id = dp?.item_name_to_id?.[itemName];
             stoneIdByGame[game] = typeof id === 'number' ? id : null;
         } catch (e) {
             stoneIdByGame[game] = null;
@@ -178,6 +182,14 @@ export async function getAgony(roomId: string): Promise<{ collected: number; tot
     return { collected, total };
 }
 
+export async function getAgony(roomId: string): Promise<{ collected: number; total: number }> {
+    return getSpecialItemProgress(roomId, "Stone of Agony", AGONY_GAMES);
+}
+
+export async function getGreg(roomId: string): Promise<{ collected: number; total: number }> {
+    return getSpecialItemProgress(roomId, "Greg the Green Rupee", GREG_GAMES);
+}
+
 export async function getTotalChecksDone(roomId: string): Promise<{ checks_done: number | null }> {
     const trackerId = await resolveTrackerIdFromRoom(roomId);
     if (!trackerId) return { checks_done: null };
@@ -199,5 +211,6 @@ export default {
     getPlayerToGameMap,
     getTotalChecksAvailable,
     getAgony,
+    getGreg,
     getTotalChecksDone,
 };

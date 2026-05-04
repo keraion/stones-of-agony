@@ -39,6 +39,10 @@ body {
   align-items: center;
 }
 
+.tracker-card--with-greg {
+  max-width: 620px;
+}
+
 /* If the tracker is placed inside an OBS overlay root, pin it top-left */
 .obs-root .tracker-card {
   position: absolute;
@@ -47,7 +51,7 @@ body {
   transform: translateX(-50%);
 }
 
-img[alt="Agony"] {
+.tracker-item-image {
   width: 64px;
   height: 64px;
   object-fit: contain;
