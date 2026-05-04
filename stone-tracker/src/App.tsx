@@ -54,6 +54,21 @@ function App() {
       return false;
     }
   });
+  const [stackedItems] = useState<boolean>(() => {
+    try {
+      const url = new URL(window.location.href);
+      const q = url.searchParams.get("stacked");
+      if (parseFlag(q)) return true;
+      if (url.hash) {
+        const h = new URLSearchParams(url.hash.slice(1));
+        const hs = h.get("stacked");
+        if (parseFlag(hs)) return true;
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  });
   const percent = checksTotal > 0 ? ((checks / checksTotal) * 100).toFixed(2) : "0.00";
 
 
@@ -179,6 +194,7 @@ function App() {
         greg={initialLoading ? `...` : greg}
         gregTotal={initialLoading ? `...` : gregTotal}
         showGreg={showGreg}
+        stackedItems={stackedItems}
         checks={initialLoading ? `...` : checks}
         checksTotal={initialLoading ? `...` : checksTotal}
         percent={initialLoading ? `...` : percent}

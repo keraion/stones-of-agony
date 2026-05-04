@@ -9,6 +9,7 @@ interface AgonyTrackerProps {
   greg: number | string;
   gregTotal: number | string;
   showGreg?: boolean;
+  stackedItems?: boolean;
   checks: number | string;
   checksTotal: number | string;
   percent: number | string;
@@ -20,41 +21,80 @@ const AgonyTracker: React.FC<AgonyTrackerProps> = ({
   greg,
   gregTotal,
   showGreg = false,
+  stackedItems = false,
   checks,
   checksTotal,
   percent,
 }) => (
-  <div className={`tracker-card${showGreg ? ' tracker-card--with-greg' : ''}`}>
-      <img
-        className="tracker-item-image"
-        src={agonyImg}
-        alt="Agony"
-      />
-    <div className="tracker-section">
-      <div className="tracker-label">Agony</div>
-      <div className="tracker-value">{agony}/{agonyTotal}</div>
-    </div>
-    {showGreg && (
+  <div className={`tracker-card${showGreg ? ' tracker-card--with-greg' : ''}${stackedItems ? ' tracker-card--stacked' : ''}`}>
+    {stackedItems ? (
+      <>
+        <div className="tracker-items-stack">
+          <div className="tracker-item-row">
+            <img
+              className="tracker-item-image tracker-item-image--stacked"
+              src={agonyImg}
+              alt="Agony"
+            />
+            <div className="tracker-value">{agony}/{agonyTotal}</div>
+          </div>
+          {showGreg && (
+            <div className="tracker-item-row">
+              <img
+                className="tracker-item-image tracker-item-image--stacked"
+                src={gregImg}
+                alt="Greg"
+              />
+              <div className="tracker-value">{greg}/{gregTotal}</div>
+            </div>
+          )}
+        </div>
+        <div className="tracker-stack-divider" aria-hidden="true" />
+        <div className="tracker-metrics-stack">
+          <div className="tracker-section tracker-section--stacked">
+            <div className="tracker-label">Checks</div>
+            <div className="tracker-value">{checks}/{checksTotal}</div>
+          </div>
+          <div className="tracker-section tracker-section--stacked">
+            <div className="tracker-label">%</div>
+            <div className="tracker-value">{percent}</div>
+          </div>
+        </div>
+      </>
+    ) : (
       <>
         <img
           className="tracker-item-image"
-          src={gregImg}
-          alt="Greg"
+          src={agonyImg}
+          alt="Agony"
         />
         <div className="tracker-section">
-          <div className="tracker-label">Greg</div>
-          <div className="tracker-value">{greg}/{gregTotal}</div>
+          <div className="tracker-label">Agony</div>
+          <div className="tracker-value">{agony}/{agonyTotal}</div>
+        </div>
+        {showGreg && (
+          <>
+            <img
+              className="tracker-item-image"
+              src={gregImg}
+              alt="Greg"
+            />
+            <div className="tracker-section">
+              <div className="tracker-label">Greg</div>
+              <div className="tracker-value">{greg}/{gregTotal}</div>
+            </div>
+          </>
+        )}
+        <div className="tracker-section">
+          <div className="tracker-label">Checks</div>
+          <div className="tracker-value">{checks}/{checksTotal}</div>
+        </div>
+        <div className="tracker-section">
+          <div className="tracker-label">%</div>
+          <div className="tracker-value">{percent}</div>
         </div>
       </>
     )}
-    <div className="tracker-section">
-      <div className="tracker-label">Checks</div>
-      <div className="tracker-value">{checks}/{checksTotal}</div>
-    </div>
-    <div className="tracker-section">
-      <div className="tracker-label">%</div>
-      <div className="tracker-value">{percent}</div>
-    </div>
   </div>
 );
 

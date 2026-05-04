@@ -20,11 +20,12 @@ https://keraion.github.io/stones-of-agony/?room=<ROOM_ID>
 |-----------|--------|-------------|
 | `room` | Room ID string | **(Required)** Your Archipelago room ID |
 | `greg` | `1` / `true` / `yes` / `on` | Show the Greg the Green Rupee tracker (Ship of Harkinian only) |
+| `stacked` | `1` / `true` / `yes` / `on` | Use stacked overlay mode (Agony/Greg in a vertical icon list, with stacked Checks and %) |
 | `direct` | `1` / `true` / `yes` / `on` | Bypass the Cloudflare worker proxy and hit archipelago.gg directly |
 
 **Example — all options:**
 ```
-https://keraion.github.io/stones-of-agony/?room=<ROOM_ID>&greg=1&direct=1
+https://keraion.github.io/stones-of-agony/?room=<ROOM_ID>&greg=1&stacked=1&direct=1
 ```
 
 ---
