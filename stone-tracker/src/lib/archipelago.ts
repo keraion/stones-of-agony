@@ -1,8 +1,24 @@
 // Prefer local wrangler dev during development. In CI / production set
 // `VITE_API_URL` as a repository secret to your deployed proxy URL.
+// Add `?direct=1` (or `#direct=1`) to the URL to skip the worker and hit
+// archipelago.gg directly (requires CORS to be enabled on the upstream).
 const DEFAULT_WORKER = 'http://127.0.0.1:8787';
+const UPSTREAM_DIRECT = 'https://archipelago.gg';
 
 const API_BASE = (() => {
+    try {
+        // Runtime override: ?direct=1 skips the worker entirely
+        const urlParams = new URLSearchParams(
+            window.location.search ||
+            (window.location.hash ? window.location.hash.slice(1) : '')
+        );
+        const direct = urlParams.get('direct');
+        if (direct === '1' || direct === 'true' || direct === 'yes' || direct === 'on') {
+            return UPSTREAM_DIRECT;
+        }
+    } catch (e) {
+        // ignore (e.g. SSR / non-browser environment)
+    }
     try {
         const v = (import.meta as any).env?.VITE_API_URL;
         if (v && typeof v === 'string' && v.length) return v.replace(/\/$/, '');
