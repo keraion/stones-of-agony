@@ -218,6 +218,22 @@ export async function getTotalChecksDone(roomId: string): Promise<{ checks_done:
     return { checks_done: null };
 }
 
+export async function getCompletionCount(roomId: string): Promise<{ completions: number; total: number }> {
+    const trackerId = await resolveTrackerIdFromRoom(roomId);
+    if (!trackerId) return { completions: 0, total: 0 };
+
+    const trackerData = await getTracker(trackerId);
+    const statuses = trackerData?.player_status;
+    if (!Array.isArray(statuses)) return { completions: 0, total: 0 };
+
+    // In Archipelago tracker payloads, status 30 indicates goal completion.
+    const completions = statuses.reduce((count: number, entry: any) => {
+        return Number(entry?.status) === 30 ? count + 1 : count;
+    }, 0);
+
+    return { completions, total: statuses.length };
+}
+
 export default {
     API_BASE,
     getRoomStatus,
@@ -229,4 +245,5 @@ export default {
     getAgony,
     getGreg,
     getTotalChecksDone,
+    getCompletionCount,
 };

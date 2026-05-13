@@ -30,12 +30,22 @@ body {
   max-height: 70px;
 }
 
+.tracker-card--with-completions {
+  min-width: 470px;
+  max-width: 470px;
+}
+
 .tracker-card--stacked {
   min-width: 380px;
   max-width: 380px;
   min-height: 116px;
   max-height: 116px;
   align-items: center;
+}
+
+.tracker-card--stacked.tracker-card--with-completions {
+  min-height: 152px;
+  max-height: 152px;
 }
 
 /* Make each tracker-section flexible and centered so sections are evenly spaced */
@@ -49,6 +59,10 @@ body {
 
 .tracker-card--with-greg {
   max-width: 620px;
+}
+
+.tracker-card--with-greg.tracker-card--with-completions {
+  max-width: 700px;
 }
 
 .tracker-card--with-greg.tracker-card--stacked {

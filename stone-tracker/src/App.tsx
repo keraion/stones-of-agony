@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import AgonyTracker from "./AgonyTracker";
 import "./AgonyTracker.css";
 import agonyImg from './assets/Stone_of_Agony_OoT.webp';
-import { getAgony, getGreg, getTotalChecksAvailable, getTotalChecksDone } from './lib/archipelago';
+import { getAgony, getCompletionCount, getGreg, getTotalChecksAvailable, getTotalChecksDone } from './lib/archipelago';
 
 function parseFlag(value: string | null): boolean {
   if (!value) return false;
@@ -17,6 +17,8 @@ function App() {
   const [gregTotal, setGregTotal] = useState(0);
   const [checks, setChecks] = useState(0);
   const [checksTotal, setChecksTotal] = useState(0);
+  const [completions, setCompletions] = useState(0);
+  const [completionsTotal, setCompletionsTotal] = useState(0);
   const [initialLoading, setInitialLoading] = useState(true);
   const [roomId, setRoomId] = useState<string | null>(() => {
     try {
@@ -48,6 +50,21 @@ function App() {
         const h = new URLSearchParams(url.hash.slice(1));
         const hg = h.get("greg");
         if (parseFlag(hg)) return true;
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  });
+  const [showCompletions] = useState<boolean>(() => {
+    try {
+      const url = new URL(window.location.href);
+      const q = url.searchParams.get("completions");
+      if (parseFlag(q)) return true;
+      if (url.hash) {
+        const h = new URLSearchParams(url.hash.slice(1));
+        const hc = h.get("completions");
+        if (parseFlag(hc)) return true;
       }
       return false;
     } catch (e) {
@@ -89,10 +106,14 @@ function App() {
         const gregPromise = showGreg
           ? getGreg(roomId)
           : Promise.resolve({ collected: 0, total: 0 });
-        const [agonyJson, doneJson, gregJson] = await Promise.all([
+        const completionPromise = showCompletions
+          ? getCompletionCount(roomId)
+          : Promise.resolve({ completions: 0, total: 0 });
+        const [agonyJson, doneJson, gregJson, completionsJson] = await Promise.all([
           getAgony(roomId),
           getTotalChecksDone(roomId),
           gregPromise,
+          completionPromise,
         ]);
         if (!mounted) return;
         setAgony(agonyJson.collected);
@@ -100,6 +121,8 @@ function App() {
         setGreg(gregJson.collected);
         setGregTotal(gregJson.total);
         setChecks(doneJson.checks_done ?? 0);
+        setCompletions(completionsJson.completions ?? 0);
+        setCompletionsTotal(completionsJson.total ?? 0);
         setInitialLoading(false);
 
         // Schedule periodic refresh for dynamic values only (every 1 minute)
@@ -108,10 +131,14 @@ function App() {
             const gPromise = showGreg
               ? getGreg(roomId)
               : Promise.resolve({ collected: 0, total: 0 });
-            const [aJson, cJson, gJson] = await Promise.all([
+            const completionPromise = showCompletions
+              ? getCompletionCount(roomId)
+              : Promise.resolve({ completions: 0, total: 0 });
+            const [aJson, cJson, gJson, completionsJson] = await Promise.all([
               getAgony(roomId),
               getTotalChecksDone(roomId),
               gPromise,
+              completionPromise,
             ]);
             if (!mounted) return;
             setAgony(aJson.collected);
@@ -119,6 +146,8 @@ function App() {
             setGreg(gJson.collected);
             setGregTotal(gJson.total);
             setChecks(cJson.checks_done ?? 0);
+            setCompletions(completionsJson.completions ?? 0);
+            setCompletionsTotal(completionsJson.total ?? 0);
           } catch (err) {
             // ignore periodic errors for now
             console.error('Periodic fetch error', err);
@@ -141,7 +170,7 @@ function App() {
         if (typeof maybeCleanup === 'function') maybeCleanup();
       });
     };
-  }, [roomId, showGreg]);
+  }, [roomId, showGreg, showCompletions]);
 
   const [inputValue, setInputValue] = useState("");
 
@@ -194,10 +223,13 @@ function App() {
         greg={initialLoading ? `...` : greg}
         gregTotal={initialLoading ? `...` : gregTotal}
         showGreg={showGreg}
+        showCompletions={showCompletions}
         stackedItems={stackedItems}
         checks={initialLoading ? `...` : checks}
         checksTotal={initialLoading ? `...` : checksTotal}
         percent={initialLoading ? `...` : percent}
+        completions={initialLoading ? `...` : completions}
+        completionsTotal={initialLoading ? `...` : completionsTotal}
       />
     </div>
   );

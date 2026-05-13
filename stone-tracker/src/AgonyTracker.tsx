@@ -9,10 +9,13 @@ interface AgonyTrackerProps {
   greg: number | string;
   gregTotal: number | string;
   showGreg?: boolean;
+  showCompletions?: boolean;
   stackedItems?: boolean;
   checks: number | string;
   checksTotal: number | string;
   percent: number | string;
+  completions: number | string;
+  completionsTotal: number | string;
 }
 
 const AgonyTracker: React.FC<AgonyTrackerProps> = ({
@@ -21,12 +24,15 @@ const AgonyTracker: React.FC<AgonyTrackerProps> = ({
   greg,
   gregTotal,
   showGreg = false,
+  showCompletions = false,
   stackedItems = false,
   checks,
   checksTotal,
   percent,
+  completions,
+  completionsTotal,
 }) => (
-  <div className={`tracker-card${showGreg ? ' tracker-card--with-greg' : ''}${stackedItems ? ' tracker-card--stacked' : ''}`}>
+  <div className={`tracker-card${showGreg ? ' tracker-card--with-greg' : ''}${showCompletions ? ' tracker-card--with-completions' : ''}${stackedItems ? ' tracker-card--stacked' : ''}`}>
     {stackedItems ? (
       <>
         <div className="tracker-items-stack">
@@ -59,6 +65,12 @@ const AgonyTracker: React.FC<AgonyTrackerProps> = ({
             <div className="tracker-label">%</div>
             <div className="tracker-value">{percent}</div>
           </div>
+          {showCompletions && (
+            <div className="tracker-section tracker-section--stacked">
+              <div className="tracker-label">Completions</div>
+              <div className="tracker-value">{completions}/{completionsTotal}</div>
+            </div>
+          )}
         </div>
       </>
     ) : (
@@ -93,6 +105,12 @@ const AgonyTracker: React.FC<AgonyTrackerProps> = ({
           <div className="tracker-label">%</div>
           <div className="tracker-value">{percent}</div>
         </div>
+        {showCompletions && (
+          <div className="tracker-section">
+            <div className="tracker-label">Completions</div>
+            <div className="tracker-value">{completions}/{completionsTotal}</div>
+          </div>
+        )}
       </>
     )}
   </div>
