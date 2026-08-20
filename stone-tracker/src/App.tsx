@@ -116,7 +116,9 @@ function App() {
         applySummary(summary);
         setInitialLoading(false);
 
-        // Poll slightly over 60s so we usually hit a freshly rotated server cache.
+        // Poll frequently: the summary is tiny and served from the worker's
+        // edge cache, so this picks up each once-a-minute revalidation soon
+        // after it lands without adding upstream load.
         const interval = setInterval(async () => {
           try {
             const s = await getSummary(roomId, {
@@ -129,7 +131,7 @@ function App() {
             // ignore periodic errors for now
             console.error('Periodic fetch error', err);
           }
-        }, 62000);
+        }, 20000);
 
         // cleanup interval on unmount
         return () => clearInterval(interval);

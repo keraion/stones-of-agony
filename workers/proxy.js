@@ -198,19 +198,25 @@ async function produceUpstream(upstreamUrl) {
 // Fetch an upstream API path as text, going through the same edge cache the
 // passthrough endpoints use (so summary computation and passthrough clients
 // share one upstream fetch per TTL).
-async function getUpstreamText(env, path) {
+async function getUpstreamText(env, path, opts) {
   const policy = policyForPath(path);
   const url = upstreamBase(env) + path;
   const cacheKey = new Request(url, { method: 'GET' });
 
-  const cached = await caches.default.match(cacheKey);
-  if (cached) {
-    const cachedAt = Number(cached.headers.get(CACHED_AT_HEADER)) || 0;
-    if ((Date.now() - cachedAt) / 1000 <= policy.fresh) {
-      return cached.text();
+  // forceFresh skips the cached copy (but still stores the new one): the
+  // summary recomputes at most once per fresh-window anyway, so always using
+  // a live tracker removes up to a full window of stacked staleness without
+  // increasing the upstream request rate.
+  if (!opts?.forceFresh) {
+    const cached = await caches.default.match(cacheKey);
+    if (cached) {
+      const cachedAt = Number(cached.headers.get(CACHED_AT_HEADER)) || 0;
+      if ((Date.now() - cachedAt) / 1000 <= policy.fresh) {
+        return cached.text();
+      }
+      // Stale is not good enough here: the summary itself is the thing being
+      // (re)computed, so pull fresh data.
     }
-    // Stale is not good enough here: the summary itself is the thing being
-    // (re)computed, so pull fresh data.
   }
 
   const produced = await produceAndCache(url, cacheKey, policy, () => produceUpstream(url));
@@ -321,7 +327,7 @@ async function computeSummary(env, roomId) {
   // room_status and static_tracker are small; only the tracker stays as text.
   const [staticTracker, trackerText] = await Promise.all([
     getUpstreamJson(env, `/api/static_tracker/${encodeURIComponent(trackerId)}`),
-    getUpstreamText(env, `/api/tracker/${encodeURIComponent(trackerId)}`),
+    getUpstreamText(env, `/api/tracker/${encodeURIComponent(trackerId)}`, { forceFresh: true }),
   ]);
 
   let totalChecksAvailable = 0;

@@ -283,9 +283,12 @@ export async function getSummary(
     opts?: { includeGreg?: boolean; includeCompletions?: boolean }
 ): Promise<RoomSummary> {
     if (API_BASE !== UPSTREAM_DIRECT) {
+        // Short TTL: the response is ~240 bytes and the worker's edge cache
+        // absorbs the traffic. Polling often picks up a freshly revalidated
+        // edge copy quickly instead of lagging a full cache cycle behind.
         return withSessionCache(
             `summary:${roomId}`,
-            60,
+            15,
             () => fetchJson(`/api/summary/${encodeURIComponent(roomId)}`),
             { allowStaleOnError: true }
         );
