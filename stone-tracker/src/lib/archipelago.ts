@@ -49,8 +49,10 @@ export async function getRoomStatus(roomId: string) {
 export async function getTracker(trackerId: string) {
     return withSessionCache(
         `tracker:${trackerId}`,
-        45,
-        () => fetchJson(`/api/tracker/${encodeURIComponent(trackerId)}`));
+        60,
+        () => fetchJson(`/api/tracker/${encodeURIComponent(trackerId)}`),
+        { allowStaleOnError: true }
+    );
 }
 
 export async function getStaticTracker(trackerId: string) {
@@ -69,8 +71,37 @@ export async function getDatapackage(checksum: string) {
     );
 }
 
+const INFLIGHT_TTL_MS = 30000;
+
+type InflightEntry<T> = {
+    promise: Promise<T>;
+    startedAt: number;
+};
+
+// In-flight promise map: prevents duplicate concurrent requests for the same key.
+// Entries expire defensively so a hung request cannot pin the key forever.
+const _inflight = new Map<string, InflightEntry<any>>();
+
 // sessionStorage-based caching helper. Stores {ts: number, data: any}
-function withSessionCache<T>(key: string, ttlSeconds: number, fetcher: () => Promise<T>): Promise<T> {
+// Also coalesces concurrent callers: if a fetch for `key` is already in flight,
+// all callers share that single promise rather than issuing duplicate requests.
+type SessionCacheOptions = {
+    allowStaleOnError?: boolean;
+    maxStaleAgeSeconds?: number;
+};
+
+function withSessionCache<T>(
+    key: string,
+    ttlSeconds: number,
+    fetcher: () => Promise<T>,
+    options?: SessionCacheOptions
+): Promise<T> {
+    let staleData: T | null = null;
+    let staleTimestamp: number | null = null;
+
+    const allowStaleOnError = options?.allowStaleOnError ?? true;
+    const maxStaleAgeMs = (options?.maxStaleAgeSeconds ?? Number.POSITIVE_INFINITY) * 1000;
+
     try {
         const raw = sessionStorage.getItem(key);
         if (raw) {
@@ -80,6 +111,10 @@ function withSessionCache<T>(key: string, ttlSeconds: number, fetcher: () => Pro
                     const age = Date.now() - parsed.ts;
                     if (age < ttlSeconds * 1000 && 'data' in parsed) {
                         return Promise.resolve(parsed.data as T);
+                    }
+                    if ('data' in parsed) {
+                        staleData = parsed.data as T;
+                        staleTimestamp = parsed.ts;
                     }
                 }
             } catch (e) {
@@ -91,15 +126,40 @@ function withSessionCache<T>(key: string, ttlSeconds: number, fetcher: () => Pro
         return fetcher();
     }
 
-    return fetcher().then((data) => {
-        try {
-            const toStore = JSON.stringify({ ts: Date.now(), data });
-            sessionStorage.setItem(key, toStore);
-        } catch (e) {
-            // ignore storage errors
+    // Return the existing in-flight promise if one is already running for this key.
+    const now = Date.now();
+    const existing = _inflight.get(key);
+    if (existing) {
+        if (now - existing.startedAt < INFLIGHT_TTL_MS) {
+            return existing.promise as Promise<T>;
         }
-        return data;
-    });
+        _inflight.delete(key);
+    }
+
+    const promise = fetcher()
+        .then((data) => {
+            _inflight.delete(key);
+            try {
+                const toStore = JSON.stringify({ ts: Date.now(), data });
+                sessionStorage.setItem(key, toStore);
+            } catch (e) {
+                // ignore storage errors
+            }
+            return data;
+        })
+        .catch((err) => {
+            _inflight.delete(key);
+            if (allowStaleOnError && staleData !== null && staleTimestamp !== null) {
+                const currentAge = Date.now() - staleTimestamp;
+                if (currentAge <= maxStaleAgeMs) {
+                    return staleData;
+                }
+            }
+            throw err;
+        });
+
+    _inflight.set(key, { promise, startedAt: now });
+    return promise;
 }
 
 // Helper to extract tracker id from room status
@@ -149,23 +209,23 @@ async function getSpecialItemProgress(
         getRoomStatus(roomId),
     ]);
 
-    // Build map of game -> Stone of Agony item id via datapackage
+    // Build map of game -> item id via datapackage (fetched in parallel)
     const datapackage = staticTracker?.datapackage || {};
-    const stoneIdByGame: Record<string, number | null> = {};
-    for (const game of supportedGames) {
-        const gameInfo = datapackage?.[game];
-        if (!gameInfo || !gameInfo.checksum) {
-            stoneIdByGame[game] = null;
-            continue;
-        }
-        try {
-            const dp = await getDatapackage(gameInfo.checksum);
-            const id = dp?.item_name_to_id?.[itemName];
-            stoneIdByGame[game] = typeof id === 'number' ? id : null;
-        } catch (e) {
-            stoneIdByGame[game] = null;
-        }
-    }
+    const stoneIdByGame: Record<string, number | null> = Object.fromEntries(
+        await Promise.all(
+            supportedGames.map(async (game) => {
+                const gameInfo = datapackage?.[game];
+                if (!gameInfo?.checksum) return [game, null];
+                try {
+                    const dp = await getDatapackage(gameInfo.checksum);
+                    const id = dp?.item_name_to_id?.[itemName];
+                    return [game, typeof id === 'number' ? id : null];
+                } catch (e) {
+                    return [game, null];
+                }
+            })
+        )
+    );
 
     // Map players to game
     const players = roomStatus?.players || [];
@@ -206,6 +266,48 @@ export async function getGreg(roomId: string): Promise<{ collected: number; tota
     return getSpecialItemProgress(roomId, "Greg the Green Rupee", GREG_GAMES);
 }
 
+export type RoomSummary = {
+    agony: { collected: number; total: number };
+    greg: { collected: number; total: number };
+    checks_done: number | null;
+    total_checks_available: number;
+    completions: { completions: number; total: number };
+};
+
+// One small request that carries everything the tracker UI shows. The worker
+// digests the multi-megabyte tracker payload server-side; in direct mode
+// (?direct=1) there is no worker, so fall back to computing it client-side
+// from the raw endpoints.
+export async function getSummary(
+    roomId: string,
+    opts?: { includeGreg?: boolean; includeCompletions?: boolean }
+): Promise<RoomSummary> {
+    if (API_BASE !== UPSTREAM_DIRECT) {
+        return withSessionCache(
+            `summary:${roomId}`,
+            60,
+            () => fetchJson(`/api/summary/${encodeURIComponent(roomId)}`),
+            { allowStaleOnError: true }
+        );
+    }
+    const [agony, done, total, greg, completions] = await Promise.all([
+        getAgony(roomId),
+        getTotalChecksDone(roomId),
+        getTotalChecksAvailable(roomId),
+        opts?.includeGreg ? getGreg(roomId) : Promise.resolve({ collected: 0, total: 0 }),
+        opts?.includeCompletions
+            ? getCompletionCount(roomId)
+            : Promise.resolve({ completions: 0, total: 0 }),
+    ]);
+    return {
+        agony,
+        greg,
+        checks_done: done.checks_done,
+        total_checks_available: total.total_checks_available,
+        completions,
+    };
+}
+
 export async function getTotalChecksDone(roomId: string): Promise<{ checks_done: number | null }> {
     const trackerId = await resolveTrackerIdFromRoom(roomId);
     if (!trackerId) return { checks_done: null };
@@ -236,6 +338,7 @@ export async function getCompletionCount(roomId: string): Promise<{ completions:
 
 export default {
     API_BASE,
+    getSummary,
     getRoomStatus,
     getTracker,
     getStaticTracker,

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import AgonyTracker from "./AgonyTracker";
 import "./AgonyTracker.css";
 import agonyImg from './assets/Stone_of_Agony_OoT.webp';
-import { getAgony, getCompletionCount, getGreg, getTotalChecksAvailable, getTotalChecksDone } from './lib/archipelago';
+import { getSummary, type RoomSummary } from './lib/archipelago';
 
 function parseFlag(value: string | null): boolean {
   if (!value) return false;
@@ -94,65 +94,42 @@ function App() {
 
     let mounted = true;
 
+    const applySummary = (summary: RoomSummary) => {
+      setAgony(summary.agony?.collected ?? 0);
+      setAgonyTotal(summary.agony?.total ?? 0);
+      setGreg(summary.greg?.collected ?? 0);
+      setGregTotal(summary.greg?.total ?? 0);
+      setChecks(summary.checks_done ?? 0);
+      setChecksTotal(summary.total_checks_available ?? 0);
+      setCompletions(summary.completions?.completions ?? 0);
+      setCompletionsTotal(summary.completions?.total ?? 0);
+    };
+
     const fetchInitialAndSchedule = async () => {
       try {
-        // Fetch total checks (only once)
-        const totalJson = await getTotalChecksAvailable(roomId);
-        if (!mounted) return;
-        setChecksTotal(totalJson.total_checks_available ?? 0);
-
-        // Fetch dynamic values (agony + checks done) in parallel for initial load
         setInitialLoading(true);
-        const gregPromise = showGreg
-          ? getGreg(roomId)
-          : Promise.resolve({ collected: 0, total: 0 });
-        const completionPromise = showCompletions
-          ? getCompletionCount(roomId)
-          : Promise.resolve({ completions: 0, total: 0 });
-        const [agonyJson, doneJson, gregJson, completionsJson] = await Promise.all([
-          getAgony(roomId),
-          getTotalChecksDone(roomId),
-          gregPromise,
-          completionPromise,
-        ]);
+        const summary = await getSummary(roomId, {
+          includeGreg: showGreg,
+          includeCompletions: showCompletions,
+        });
         if (!mounted) return;
-        setAgony(agonyJson.collected);
-        setAgonyTotal(agonyJson.total);
-        setGreg(gregJson.collected);
-        setGregTotal(gregJson.total);
-        setChecks(doneJson.checks_done ?? 0);
-        setCompletions(completionsJson.completions ?? 0);
-        setCompletionsTotal(completionsJson.total ?? 0);
+        applySummary(summary);
         setInitialLoading(false);
 
-        // Schedule periodic refresh for dynamic values only (every 1 minute)
+        // Poll slightly over 60s so we usually hit a freshly rotated server cache.
         const interval = setInterval(async () => {
           try {
-            const gPromise = showGreg
-              ? getGreg(roomId)
-              : Promise.resolve({ collected: 0, total: 0 });
-            const completionPromise = showCompletions
-              ? getCompletionCount(roomId)
-              : Promise.resolve({ completions: 0, total: 0 });
-            const [aJson, cJson, gJson, completionsJson] = await Promise.all([
-              getAgony(roomId),
-              getTotalChecksDone(roomId),
-              gPromise,
-              completionPromise,
-            ]);
+            const s = await getSummary(roomId, {
+              includeGreg: showGreg,
+              includeCompletions: showCompletions,
+            });
             if (!mounted) return;
-            setAgony(aJson.collected);
-            setAgonyTotal(aJson.total);
-            setGreg(gJson.collected);
-            setGregTotal(gJson.total);
-            setChecks(cJson.checks_done ?? 0);
-            setCompletions(completionsJson.completions ?? 0);
-            setCompletionsTotal(completionsJson.total ?? 0);
+            applySummary(s);
           } catch (err) {
             // ignore periodic errors for now
             console.error('Periodic fetch error', err);
           }
-        }, 60000);
+        }, 62000);
 
         // cleanup interval on unmount
         return () => clearInterval(interval);
